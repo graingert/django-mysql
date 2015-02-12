@@ -1,7 +1,8 @@
 # -*- coding:utf-8 -*-
+import json
 import re
 
-from django.core import exceptions
+from django.core import exceptions, serializers
 from django.db import models
 from django.db.migrations.writer import MigrationWriter
 from django.test import TestCase
@@ -11,7 +12,7 @@ from django_mysql.fields import SetCharField
 from django_mysql_tests.models import Settee
 
 
-class SetCharFieldTests(TestCase):
+class TestSaveLoad(TestCase):
 
     def test_easy(self):
         s = Settee.objects.create(features={"big", "comfy"})
@@ -71,7 +72,7 @@ class SetCharFieldTests(TestCase):
         self.assertEqual(three.count(), 0)
 
 
-class ValidationTests(TestCase):
+class TestValidation(TestCase):
 
     def test_max_length(self):
         field = SetCharField(
@@ -90,7 +91,7 @@ class ValidationTests(TestCase):
         )
 
 
-class CheckTests(TestCase):
+class TestCheck(TestCase):
 
     def test_field_checks(self):
         field = SetCharField(models.CharField(), max_length=32)
@@ -187,3 +188,21 @@ class TestMigrations(TestCase):
                 re.VERBOSE
             )
         )
+
+
+class TestSerialization(TestCase):
+
+    def test_dumping(self):
+        instance = Settee(features={"big", "comfy"})
+        data = json.loads(serializers.serialize('json', [instance]))[0]
+        features = data['fields']['features']
+        self.assertEqual(sorted(features.split(',')), ["big", "comfy"])
+
+    def test_loading(self):
+        test_data = '''
+            [{"fields": {"features": "big,leather,comfy"},
+             "model": "django_mysql_tests.settee", "pk": null}]
+        '''
+        objs = list(serializers.deserialize('json', test_data))
+        instance = objs[0].object
+        self.assertEqual(instance.features, set(["big", "leather", "comfy"]))

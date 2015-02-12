@@ -95,6 +95,10 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
             value = ','.join(value)
         return value
 
+    def value_to_string(self, obj):
+        vals = self._get_val_from_obj(obj)
+        return self.get_prep_value(vals)
+
 
 @SetCharField.register_lookup
 class FindInSet(Lookup):
