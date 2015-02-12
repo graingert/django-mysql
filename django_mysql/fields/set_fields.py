@@ -1,7 +1,8 @@
 # -*- coding:utf-8 -*-
 from django.core import checks
-from django.db.models import (CharField, IntegerField, Lookup, SubfieldBase,
+from django.db.models import (CharField, IntegerField, SubfieldBase,
                               Transform)
+from django.db.models.lookups import Contains
 from django.utils import six
 
 from django_mysql.validators import SetMaxLengthValidator
@@ -71,6 +72,10 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
                     )
         return errors
 
+    @property
+    def description(self):
+        return 'Set of %s' % self.base_field.description
+
     def set_attributes_from_name(self, name):
         super(SetCharField, self).set_attributes_from_name(name)
         self.base_field.set_attributes_from_name(name)
@@ -90,10 +95,21 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
     def get_prep_value(self, value):
         if isinstance(value, set):
             value = {six.u(i) for i in value}
-            for i in value:
-                assert ',' not in i
+            for bit in value:
+                if ',' in bit:
+                    raise ValueError("Set members in SetCharField %s cannot "
+                                     "contain commas" % self.name)
             value = ','.join(value)
         return value
+
+    def get_db_prep_lookup(self, lookup_type, value, connection,
+                           prepared=False):
+        if lookup_type == 'contains':
+            # Avoid the default behaviour of adding wildcards on either side of
+            # what we're searching for, because of FIND_IN_SET
+            return [self.get_prep_value(value)]
+        return super(SetCharField, self).get_db_prep_lookup(
+            lookup_type, value, connection, prepared)
 
     def value_to_string(self, obj):
         vals = self._get_val_from_obj(obj)
@@ -101,15 +117,14 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
 
 
 @SetCharField.register_lookup
-class FindInSet(Lookup):
-    lookup_name = 'has'
+class SetContains(Contains):
+    lookup_name = 'contains'
 
     def as_sql(self, qn, connection):
         lhs, lhs_params = self.process_lhs(qn, connection)
         rhs, rhs_params = self.process_rhs(qn, connection)
         params = lhs_params + rhs_params
-        # Yes we're putting rhs on the left hand side since that's the order
-        # FIND_IN_SET expects
+        # Put rhs on the left since that's the order FIND_IN_SET uses
         return 'FIND_IN_SET(%s, %s)' % (rhs, lhs), params
 
 

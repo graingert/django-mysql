@@ -4,6 +4,7 @@ import re
 
 from django.core import exceptions, serializers
 from django.db import models
+from django.db.models import Q
 from django.db.migrations.writer import MigrationWriter
 from django.test import TestCase
 
@@ -21,25 +22,36 @@ class TestSaveLoad(TestCase):
         self.assertSetEqual(s.features, {"comfy", "big"})
 
     def test_cant_create_sets_with_commas(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             Settee.objects.create(features={"co,ma", "contained"})
 
-    def test_has_lookup(self):
+    def test_contains_lookup(self):
         sofa = Settee.objects.create(features={"mouldy", "rotten"})
 
-        mouldy = Settee.objects.filter(features__has="mouldy")
+        mouldy = Settee.objects.filter(features__contains="mouldy")
         self.assertEqual(mouldy.count(), 1)
         self.assertEqual(mouldy[0], sofa)
 
-        rotten = Settee.objects.filter(features__has="rotten")
+        rotten = Settee.objects.filter(features__contains="rotten")
         self.assertEqual(rotten.count(), 1)
         self.assertEqual(rotten[0], sofa)
 
-        clean = Settee.objects.filter(features__has="clean")
+        clean = Settee.objects.filter(features__contains="clean")
         self.assertEqual(clean.count(), 0)
 
-        clean = Settee.objects.filter(features__has={"mouldy", "rotten"})
+        clean = Settee.objects.filter(features__contains={"mouldy", "rotten"})
         self.assertEqual(clean.count(), 0)
+
+        either = Settee.objects.filter(
+            Q(features__contains={"mouldy"}) | Q(features__contains={"clean"})
+        )
+        self.assertEqual(either.count(), 1)
+
+        not_clean = Settee.objects.exclude(features__contains={"clean"})
+        self.assertEqual(not_clean.count(), 1)
+
+        not_mouldy = Settee.objects.exclude(features__contains={"mouldy"})
+        self.assertEqual(not_mouldy.count(), 0)
 
     def test_len_lookup_empty(self):
         sofa = Settee.objects.create(features=set())
