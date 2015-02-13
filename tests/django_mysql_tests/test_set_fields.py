@@ -4,10 +4,11 @@ import re
 
 from django import forms
 from django.core import exceptions, serializers
-from django.db import models
+from django.core.management import call_command
+from django.db import models, connection
 from django.db.models import Q
 from django.db.migrations.writer import MigrationWriter
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from django_mysql.fields import SetCharField
 from django_mysql.forms import SimpleSetField
@@ -253,6 +254,32 @@ class TestMigrations(TestCase):
                 re.VERBOSE
             )
         )
+
+    @override_settings(MIGRATION_MODULES={
+        "django_mysql_tests": "django_mysql_tests.set_default_migrations",
+    })
+    def test_adding_field_with_default(self):
+        self.skipTest("broken")
+        table_name = 'django_mysql_tests_intsetdefaultmodel'
+        with connection.cursor() as cursor:
+            self.assertNotIn(
+                table_name,
+                connection.introspection.table_names(cursor)
+            )
+
+        call_command('migrate', 'django_mysql_tests', verbosity=0)
+        with connection.cursor() as cursor:
+            self.assertIn(
+                table_name,
+                connection.introspection.table_names(cursor)
+            )
+
+        call_command('migrate', 'django_mysql_tests', 'zero', verbosity=0)
+        with connection.cursor() as cursor:
+            self.assertNotIn(
+                table_name,
+                connection.introspection.table_names(cursor)
+            )
 
 
 class TestSerialization(TestCase):
