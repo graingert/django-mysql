@@ -94,12 +94,12 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
 
     def get_prep_value(self, value):
         if isinstance(value, set):
-            value = {six.u(i) for i in value}
-            for bit in value:
-                if ',' in bit:
+            value = {six.u(self.base_field.get_prep_value(v)) for v in value}
+            for v in value:
+                if ',' in v:
                     raise ValueError("Set members in SetCharField %s cannot "
                                      "contain commas" % self.name)
-            value = ','.join(value)
+            return ','.join(value)
         return value
 
     def get_db_prep_lookup(self, lookup_type, value, connection,
