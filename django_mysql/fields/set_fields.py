@@ -89,12 +89,15 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
 
     def to_python(self, value):
         if isinstance(value, six.string_types):
-            value = set(value.split(','))
+            value = {self.base_field.to_python(v) for v in value.split(',')}
         return value
 
     def get_prep_value(self, value):
         if isinstance(value, set):
-            value = {six.u(self.base_field.get_prep_value(v)) for v in value}
+            value = {
+                six.text_type(self.base_field.get_prep_value(v))
+                for v in value
+            }
             for v in value:
                 if ',' in v:
                     raise ValueError("Set members in SetCharField %s cannot "
@@ -106,8 +109,15 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
                            prepared=False):
         if lookup_type == 'contains':
             # Avoid the default behaviour of adding wildcards on either side of
-            # what we're searching for, because of FIND_IN_SET
-            return [self.get_prep_value(value)]
+            # what we're searching for, because FIND_IN_SET is doing that
+            # implicitly
+            if isinstance(value, set):
+                # Can't do multiple contains without massive ORM hackery
+                # (ANDing all the FIND_IN_SET calls), so just reject them
+                raise ValueError("Can't do contains with a set and "
+                                 "SetCharField, you should pass them as "
+                                 "separate filters.")
+            return [six.text_type(self.base_field.get_prep_value(value))]
         return super(SetCharField, self).get_db_prep_lookup(
             lookup_type, value, connection, prepared)
 
