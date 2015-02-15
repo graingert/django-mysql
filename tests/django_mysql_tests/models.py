@@ -17,6 +17,13 @@ class IntSetModel(Model):
     field = SetCharField(base_field=IntegerField(), size=5, max_length=32)
 
 
+class CharSetDefaultModel(Model):
+    field = SetCharField(base_field=CharField(max_length=5),
+                         size=5,
+                         max_length=32,
+                         default=lambda: {"a", "d"})
+
+
 class Author(Model):
     name = CharField(max_length=32)
 

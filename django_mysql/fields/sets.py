@@ -37,42 +37,42 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
                     id='django_mysql.E002'
                 )
             )
-        else:
-            # Remove the field name checks as they are not needed here.
-            base_errors = self.base_field.check()
-            if base_errors:
-                messages = '\n    '.join(
-                    '%s (%s)' % (error.msg, error.id)
-                    for error in base_errors
+            return errors
+
+        # Remove the field name checks as they are not needed here.
+        base_errors = self.base_field.check()
+        if base_errors:
+            messages = '\n    '.join(
+                '%s (%s)' % (error.msg, error.id)
+                for error in base_errors
+            )
+            errors.append(
+                checks.Error(
+                    'Base field for set has errors:\n    %s' % messages,
+                    hint=None,
+                    obj=self,
+                    id='django_mysql.E001'
                 )
+            )
+        elif isinstance(self.base_field, CharField) and self.size:
+            max_size = (
+                (self.size * (self.base_field.max_length)) +
+                self.size - 1
+            )
+            if max_size > self.max_length:
                 errors.append(
                     checks.Error(
-                        'Base field for set has errors:\n    %s' % messages,
+                        'Field can overrun - set contains CharFields of max '
+                        'length %s, leading to a comma-combined max length of '
+                        '%s, which is greater than the space reserved for the '
+                        'set - %s' %
+                        (self.base_field.max_length, max_size,
+                            self.max_length),
                         hint=None,
                         obj=self,
-                        id='django_mysql.E001'
+                        id='django_mysql.E003'
                     )
                 )
-
-            if isinstance(self.base_field, CharField) and self.size:
-                max_size = (
-                    (self.size * (self.base_field.max_length)) +
-                    self.size - 1
-                )
-                if max_size > self.max_length:
-                    errors.append(
-                        checks.Error(
-                            'Field can overrun - set contains CharFields of '
-                            'max length %s, leading to a comma-combined max '
-                            'length of %s, which is greater than the space '
-                            'reserved for the set - %s' %
-                            (self.base_field.max_length, max_size,
-                                self.max_length),
-                            hint=None,
-                            obj=self,
-                            id='django_mysql.E003'
-                        )
-                    )
         return errors
 
     @property

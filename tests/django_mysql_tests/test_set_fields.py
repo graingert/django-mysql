@@ -13,7 +13,9 @@ from django.test import TestCase, override_settings
 from django_mysql.fields import SetCharField
 from django_mysql.forms import SimpleSetField
 
-from django_mysql_tests.models import CharSetModel, IntSetModel
+from django_mysql_tests.models import (
+    CharSetModel, CharSetDefaultModel, IntSetModel
+)
 
 
 class TestSaveLoad(TestCase):
@@ -91,6 +93,13 @@ class TestSaveLoad(TestCase):
 
         three = CharSetModel.objects.filter(field__len=3)
         self.assertEqual(three.count(), 0)
+
+    def test_char_default(self):
+        mymodel = CharSetDefaultModel.objects.create()
+        self.assertEqual(mymodel.field, {"a", "d"})
+
+        mymodel = CharSetDefaultModel.objects.get(id=mymodel.id)
+        self.assertEqual(mymodel.field, {"a", "d"})
 
     def test_int_easy(self):
         mymodel = IntSetModel.objects.create(field={1, 2})
