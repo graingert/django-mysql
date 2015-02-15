@@ -259,7 +259,6 @@ class TestMigrations(TestCase):
         "django_mysql_tests": "django_mysql_tests.set_default_migrations",
     })
     def test_adding_field_with_default(self):
-        self.skipTest("broken")
         table_name = 'django_mysql_tests_intsetdefaultmodel'
         with connection.cursor() as cursor:
             self.assertNotIn(
