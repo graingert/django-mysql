@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 from django.db.models import CharField, IntegerField, Model as VanillaModel
 
-from django_mysql.models import Model, SetCharField
+from django_mysql.models import Model, SetCharField, SetTextField
 
 
 class CharSetModel(Model):
@@ -21,6 +21,14 @@ class CharSetDefaultModel(Model):
                          size=5,
                          max_length=32,
                          default=lambda: {"a", "d"})
+
+
+class BigCharSetModel(Model):
+    field = SetTextField(
+        base_field=CharField(max_length=8),
+        size=3,
+        max_length=32,
+    )
 
 
 class Author(Model):

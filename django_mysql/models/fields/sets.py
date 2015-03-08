@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from django.core import checks
 from django.db.models import (CharField, IntegerField, SubfieldBase,
-                              Transform)
+                              TextField, Transform)
 from django.db.models.lookups import Contains
 from django.utils import six
 
@@ -157,7 +157,10 @@ class SetCharField(six.with_metaclass(SubfieldBase, SetFieldMixin, CharField)):
         return errors
 
 
-@SetCharField.register_lookup
+class SetTextField(six.with_metaclass(SubfieldBase, SetFieldMixin, TextField)):
+    pass
+
+
 class SetContains(Contains):
     lookup_name = 'contains'
 
@@ -169,7 +172,10 @@ class SetContains(Contains):
         return 'FIND_IN_SET(%s, %s)' % (rhs, lhs), params
 
 
-@SetCharField.register_lookup
+SetCharField.register_lookup(SetContains)
+SetTextField.register_lookup(SetContains)
+
+
 class SetLength(Transform):
     lookup_name = 'len'
     output_field = IntegerField()
@@ -186,3 +192,7 @@ class SetLength(Transform):
     def as_sql(self, compiler, connection):
         lhs, params = compiler.compile(self.lhs)
         return self.expr % (lhs, lhs, lhs), params
+
+
+SetCharField.register_lookup(SetLength)
+SetTextField.register_lookup(SetLength)
