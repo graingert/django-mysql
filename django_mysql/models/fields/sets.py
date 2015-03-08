@@ -11,21 +11,18 @@ from django_mysql.forms import SimpleSetField
 from django_mysql.validators import SetMaxLengthValidator
 
 
-class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
-    """
-    A subclass of CharField for using MySQL's handy FIND_IN_SET function with.
-    """
+class SetFieldMixin(object):
     def __init__(self, base_field, size=None, **kwargs):
         self.base_field = base_field
         self.size = size
 
-        super(SetCharField, self).__init__(**kwargs)
+        super(SetFieldMixin, self).__init__(**kwargs)
 
         if self.size:
             self.validators.append(SetMaxLengthValidator(int(self.size)))
 
     def check(self, **kwargs):
-        errors = super(SetCharField, self).check(**kwargs)
+        errors = super(SetFieldMixin, self).check(**kwargs)
         if not isinstance(self.base_field, (CharField, IntegerField)):
             errors.append(
                 checks.Error(
@@ -52,25 +49,6 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
                     id='django_mysql.E001'
                 )
             )
-        elif isinstance(self.base_field, CharField) and self.size:
-            max_size = (
-                (self.size * (self.base_field.max_length)) +
-                self.size - 1
-            )
-            if max_size > self.max_length:
-                errors.append(
-                    checks.Error(
-                        'Field can overrun - set contains CharFields of max '
-                        'length %s, leading to a comma-combined max length of '
-                        '%s, which is greater than the space reserved for the '
-                        'set - %s' %
-                        (self.base_field.max_length, max_size,
-                            self.max_length),
-                        hint=None,
-                        obj=self,
-                        id='django_mysql.E003'
-                    )
-                )
         return errors
 
     @property
@@ -78,12 +56,12 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
         return 'Set of %s' % self.base_field.description
 
     def set_attributes_from_name(self, name):
-        super(SetCharField, self).set_attributes_from_name(name)
+        super(SetFieldMixin, self).set_attributes_from_name(name)
         self.base_field.set_attributes_from_name(name)
 
     def deconstruct(self):
-        name, path, args, kwargs = super(SetCharField, self).deconstruct()
-        path = 'django_mysql.models.SetCharField'
+        name, path, args, kwargs = super(SetFieldMixin, self).deconstruct()
+        path = 'django_mysql.models.%s' % self.__class__.__name__
         args.insert(0, self.base_field)
         kwargs['size'] = self.size
         return name, path, args, kwargs
@@ -101,8 +79,11 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
             }
             for v in value:
                 if ',' in v:
-                    raise ValueError("Set members in SetCharField %s cannot "
-                                     "contain commas" % self.name)
+                    raise ValueError(
+                        "Set members in {klass} {name} cannot contain commas"
+                        .format(klass=self.__class__.__name__,
+                                name=self.name)
+                    )
             return ','.join(value)
         return value
 
@@ -115,11 +96,13 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
             if isinstance(value, set):
                 # Can't do multiple contains without massive ORM hackery
                 # (ANDing all the FIND_IN_SET calls), so just reject them
-                raise ValueError("Can't do contains with a set and "
-                                 "SetCharField, you should pass them as "
-                                 "separate filters.")
+                raise ValueError(
+                    "Can't do contains with a set and {klass}, you should "
+                    "pass them as separate filters."
+                    .format(klass=self.__class__.__name__)
+                )
             return [six.text_type(self.base_field.get_prep_value(value))]
-        return super(SetCharField, self).get_db_prep_lookup(
+        return super(SetFieldMixin, self).get_db_prep_lookup(
             lookup_type, value, connection, prepared)
 
     def value_to_string(self, obj):
@@ -133,7 +116,45 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
             'max_length': self.size,
         }
         defaults.update(kwargs)
-        return super(SetCharField, self).formfield(**defaults)
+        return super(SetFieldMixin, self).formfield(**defaults)
+
+
+class SetCharField(six.with_metaclass(SubfieldBase, SetFieldMixin, CharField)):
+    """
+    A subclass of CharField for using MySQL's handy FIND_IN_SET function with.
+    """
+    def check(self, **kwargs):
+        errors = super(SetCharField, self).check(**kwargs)
+
+        # Unfortunately this check can't really be done for IntegerFields since
+        # they have boundless length
+        has_base_error = any(e.id == 'django_mysql.E001' for e in errors)
+        if (
+            not has_base_error and
+            isinstance(self.base_field, CharField) and
+            self.size
+        ):
+            max_size = (
+                # The chars used
+                (self.size * (self.base_field.max_length)) +
+                # The commas
+                self.size - 1
+            )
+            if max_size > self.max_length:
+                errors.append(
+                    checks.Error(
+                        'Field can overrun - set contains CharFields of max '
+                        'length %s, leading to a comma-combined max length of '
+                        '%s, which is greater than the space reserved for the '
+                        'set - %s' %
+                        (self.base_field.max_length, max_size,
+                            self.max_length),
+                        hint=None,
+                        obj=self,
+                        id='django_mysql.E003'
+                    )
+                )
+        return errors
 
 
 @SetCharField.register_lookup
