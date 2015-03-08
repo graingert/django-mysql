@@ -7,10 +7,8 @@ from django.db.models import (CharField, IntegerField, SubfieldBase,
 from django.db.models.lookups import Contains
 from django.utils import six
 
-from ..forms import SimpleSetField
-from ..validators import SetMaxLengthValidator
-
-__all__ = ['SetCharField']
+from django_mysql.forms import SimpleSetField
+from django_mysql.validators import SetMaxLengthValidator
 
 
 class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
@@ -85,7 +83,7 @@ class SetCharField(six.with_metaclass(SubfieldBase, CharField)):
 
     def deconstruct(self):
         name, path, args, kwargs = super(SetCharField, self).deconstruct()
-        path = 'django_mysql.fields.SetCharField'
+        path = 'django_mysql.models.SetCharField'
         args.insert(0, self.base_field)
         kwargs['size'] = self.size
         return name, path, args, kwargs

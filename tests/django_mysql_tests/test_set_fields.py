@@ -10,7 +10,7 @@ from django.db.models import Q
 from django.db.migrations.writer import MigrationWriter
 from django.test import TestCase, override_settings
 
-from django_mysql.fields import SetCharField
+from django_mysql.models import SetCharField
 from django_mysql.forms import SimpleSetField
 
 from django_mysql_tests.models import (
@@ -227,7 +227,7 @@ class TestMigrations(TestCase):
         self.assertRegexpMatches(
             statement,
             re.compile(
-                r"""^django_mysql\.fields\.SetCharField\(
+                r"""^django_mysql\.models\.SetCharField\(
                     models\.CharField\(max_length=5\),\ # space here
                     (
                         max_length=32,\ size=None|
@@ -252,7 +252,7 @@ class TestMigrations(TestCase):
         self.assertRegexpMatches(
             statement,
             re.compile(
-                r"""^django_mysql\.fields\.SetCharField\(
+                r"""^django_mysql\.models\.SetCharField\(
                     models\.CharField\(max_length=5\),\ # space here
                     (
                         max_length=32,\ size=5|
