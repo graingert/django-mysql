@@ -6,6 +6,7 @@ from django.db.models import (CharField, IntegerField, SubfieldBase,
                               TextField, Transform)
 from django.db.models.lookups import Contains
 from django.utils import six
+from django.utils.translation import ugettext_lazy as _
 
 from django_mysql.forms import SimpleSetField
 from django_mysql.validators import SetMaxLengthValidator
@@ -53,7 +54,9 @@ class SetFieldMixin(object):
 
     @property
     def description(self):
-        return 'Set of %s' % self.base_field.description
+        return _('Set of %(base_description)s') % {
+            'base_description': self.base_field.description
+        }
 
     def set_attributes_from_name(self, name):
         super(SetFieldMixin, self).set_attributes_from_name(name)
