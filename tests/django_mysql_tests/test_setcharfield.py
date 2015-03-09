@@ -174,6 +174,8 @@ class TestCheck(TestCase):
         errors = field.check()
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, 'django_mysql.E001')
+        self.assertIn('Base field for set has errors', errors[0].msg)
+        self.assertIn('max_length', errors[0].msg)
 
     def test_invalid_base_fields(self):
         field = SetCharField(
@@ -184,6 +186,7 @@ class TestCheck(TestCase):
         errors = field.check()
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, 'django_mysql.E002')
+        self.assertIn('Base field for set must be', errors[0].msg)
 
     def test_max_length_including_base(self):
         field = SetCharField(
@@ -193,6 +196,7 @@ class TestCheck(TestCase):
         errors = field.check()
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, 'django_mysql.E003')
+        self.assertIn('Field can overrun', errors[0].msg)
 
 
 class TestMigrations(TestCase):
@@ -318,7 +322,7 @@ class TestFormField(TestCase):
         self.assertEqual(form_field.base_field.max_length, 27)
 
     def test_model_field_formfield_size(self):
-        model_field = SetCharField(models.CharField(max_length=27), size=4)
+        model_field = SetCharField(models.IntegerField(), size=4)
         form_field = model_field.formfield()
         self.assertIsInstance(form_field, SimpleSetField)
         self.assertEqual(form_field.max_length, 4)
