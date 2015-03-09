@@ -30,6 +30,17 @@ class TestSaveLoad(TestCase):
         with self.assertRaises(ValueError):
             CharSetModel.objects.create(field={"co,mma", "contained"})
 
+    def test_char_basic_lookup(self):
+        mymodel = CharSetModel.objects.create()
+        empty = CharSetModel.objects.filter(field="")
+
+        self.assertEqual(empty.count(), 1)
+        self.assertEqual(empty[0], mymodel)
+
+        mymodel.delete()
+
+        self.assertEqual(empty.count(), 0)
+
     def test_char_contains_lookup(self):
         mymodel = CharSetModel.objects.create(field={"mouldy", "rotten"})
 
@@ -310,6 +321,20 @@ class TestSerialization(TestCase):
         objs = list(serializers.deserialize('json', test_data))
         instance = objs[0].object
         self.assertEqual(instance.field, set(["big", "leather", "comfy"]))
+
+
+class TestDescription(TestCase):
+
+    def test_char(self):
+        field = SetCharField(models.CharField(max_length=5), max_length=32)
+        self.assertEqual(
+            field.description,
+            "Set of String (up to %(max_length)s)"
+        )
+
+    def test_int(self):
+        field = SetCharField(models.IntegerField(), max_length=32)
+        self.assertEqual(field.description, "Set of Integer")
 
 
 class TestFormField(TestCase):
